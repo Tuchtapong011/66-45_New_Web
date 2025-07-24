@@ -36,6 +36,10 @@
         <li><a href="W02_01_oddEvenNumber.php">odd-Even-Number</a></li>
         <li><a href="W02_02_grade.php">Calculate Grade</a></li>
         <li><a href="calculate.php">Calculate</a></li>
+        <li><a href="W0_06_01_loopProduct.php">Show Product (Fix data)</a></li>
+        <li><a href="">Connect Database</a></li>
+        <li><a href="">Show Product (From Database)</a></li>
+        <li><a href="test.php">test</a></li>
     </ul>
     <hr>
     
