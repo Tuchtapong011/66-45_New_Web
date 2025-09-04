@@ -38,6 +38,27 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             justify-content: space-between;
             align-items: center;
         }
+        body {
+            background: radial-gradient(circle, rgba(140, 35, 232, 1) 0%, rgba(252, 70, 107, 1) 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .card {
+            border: none;
+        }
+
+        .dashboard-card {
+            transition: transform 0.2s;
+        }
+
+        .dashboard-card:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-light {
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="bg-light">

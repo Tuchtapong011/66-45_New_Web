@@ -12,11 +12,26 @@ require_once 'authadmin.php';
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
+        body {
+            background: radial-gradient(circle, rgba(140, 35, 232, 1) 0%, rgba(252, 70, 107, 1) 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .card {
+            border: none;
+        }
+
         .dashboard-card {
             transition: transform 0.2s;
         }
+
         .dashboard-card:hover {
-            transform: scale(1.02);
+            transform: scale(1.05);
+        }
+
+        .btn-light {
+            font-weight: bold;
         }
     </style>
 </head>
@@ -73,7 +88,7 @@ require_once 'authadmin.php';
     </div>
 
     <div class="text-center mt-5">
-        <a href="../logout.php" class="btn btn-outline-secondary">
+        <a href="../logout.php" class="btn btn-danger">
             <i class="bi bi-box-arrow-right"></i> ออกจากระบบ
         </a>
     </div>
