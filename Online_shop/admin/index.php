@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once '../Config.php';
 require_once 'authadmin.php';
 ?>
@@ -60,7 +59,7 @@ require_once 'authadmin.php';
                 <div class="card-body text-center">
                     <i class="bi bi-folder-fill fs-1 mb-3"></i>
                     <h5 class="card-title">จัดการหมวดหมู่</h5>
-                    <a href="categories.php" class="btn btn-light mt-3 w-100">ไปยังหน้าจัดการ</a>
+                    <a href="category.php" class="btn btn-light mt-3 w-100">ไปยังหน้าจัดการ</a>
                 </div>
             </div>
         </div>
