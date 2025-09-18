@@ -9,17 +9,53 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 }
 
 // ลบสินค้า
-if (isset($_GET['delete'])) {
-    $product_id = intval($_GET['delete']);
+// if (isset($_GET['delete'])) {
+//    $product_id = intval($_GET['delete']);
+//    $stmt = $conn->prepare("DELETE FROM products WHERE product_id = ?");
+//    $stmt->execute([$product_id]);
 
-    // ลบสินค้า
-    $stmt = $conn->prepare("DELETE FROM products WHERE product_id = ?");
+//    $_SESSION['success'] = "ลบสินค้าสำเร็จ";
+//    header("Location: products.php");
+//    exit;
+//  }
+
+// ลบสินค้า + ลบรูป
+if (isset($_GET['delete'])) {
+    $product_id = (int)$_GET['delete']; // กำหนดตรงนี้
+
+    // 1) ดึงชื่อไฟล์รูปจาก DB
+    $stmt = $conn->prepare("SELECT image FROM products WHERE product_id = ?");
     $stmt->execute([$product_id]);
+    $imageName = $stmt->fetchColumn(); // จะเป็น null ถ้าไม่มีรูป
+
+    // 2) ลบใน DB ด้วย Transaction
+    try {
+        $conn->beginTransaction();
+        $del = $conn->prepare("DELETE FROM products WHERE product_id = ?");
+        $del->execute([$product_id]);
+        $conn->commit();
+    } catch (Exception $e) {
+        $conn->rollBack();
+        $_SESSION['error'] = "เกิดข้อผิดพลาดในการลบสินค้า";
+        header("Location: products.php");
+        exit;
+    }
+
+    // 3) ลบไฟล์รูป (ถ้ามี)
+    if ($imageName) {
+        $baseDir = realpath(__DIR__ . '/../product_images');
+        $filePath = realpath($baseDir . '/' . $imageName);
+
+        if ($filePath && strpos($filePath, $baseDir) === 0 && is_file($filePath)) {
+            @unlink($filePath); // ลบรูป (ใช้ @ กัน warning)
+        }
+    }
 
     $_SESSION['success'] = "ลบสินค้าสำเร็จ";
     header("Location: products.php");
     exit;
 }
+
 
 // เพิ่มสินค้า
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
@@ -28,10 +64,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
     $price = floatval($_POST['price']);
     $stock = intval($_POST['stock']);
     $category_id = intval($_POST['category_id']);
+    $imageName = null;
 
+    // อัปโหลดภาพ
+    
     if ($name !== '' && $price > 0) {
-        $stmt = $conn->prepare("INSERT INTO products (product_name, description, price, stock, category_id) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$name, $description, $price, $stock, $category_id]);
+        if (!empty($_FILES['product_image']['name'])) {
+            $file = $_FILES['product_image'];
+            $allowed = ['image/jpeg', 'image/png'];
+            
+            if (in_array($file['type'], $allowed)) {
+                $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $imageName = 'product_' . time() . '.' . $ext;
+                $path = __DIR__ . '/../product_images/' . $imageName;
+                move_uploaded_file($file['tmp_name'], $path);
+            }
+        }
+        $stmt = $conn->prepare("INSERT INTO products (product_name, description, price, stock, category_id, image)VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $description, $price, $stock, $category_id, $imageName]);
 
         $_SESSION['success'] = "เพิ่มสินค้าสำเร็จ";
         header("Location: products.php");
@@ -73,7 +123,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name ASC"
 <a href="index.php" class="btn btn-secondary mb-3">← กลับหน้าผู้ดูแล</a>
 
 <!-- ฟอร์มเพิ่มสินค้าใหม่ -->
-<form method="post" class="row g-3 mb-4">
+<form method="post" enctype="multipart/form-data" class="row g-3 mb-4">
     <h5>เพิ่มสินค้ใหม่</h5>
     <div class="col-md-4">
         <input type="text" name="product_name" class="form-control" placeholder="ชื่อสินค้า" required>
@@ -95,16 +145,21 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name ASC"
     <div class="col-12">
         <textarea name="description" class="form-control" placeholder="รายละเอียดสินค้า" rows="2"></textarea>
     </div>
+    <div class="col-md-4">
+        <input type="file" name="product_image" class="form-control" accept="image/jpeg,image/png">
+    </div>
     <div class="col-12">
         <button type="submit" name="add_product" class="btn btn-primary">เพิ่มสินค้า</button>
     </div>
 </form>
+
 
 <!-- ตารางแสดงรายการสินค้า -->
 <h5>รายการสินค้า</h5>
 <table class="table table-bordered">
 <thead>
 <tr>
+    <th>รูป</th>
     <th>ชื่อสินค้า</th>
     <th>หมวดหมู่</th>
     <th>ราคา</th>
@@ -115,6 +170,13 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name ASC"
 <tbody>
 <?php foreach ($products as $p): ?>
 <tr>
+    <td>
+        <?php if ($p['image']): ?>
+        <img src="../product_images/<?= htmlspecialchars($p['image']) ?>" width="60" height="60" class="rounded">
+        <?php else: ?>
+        <span class="text-muted">ไม่มีรูป</span>
+        <?php endif; ?>
+    </td>
     <td><?= htmlspecialchars($p['product_name']) ?></td>
     <td><?= htmlspecialchars($p['category_name']) ?></td>
     <td><?= number_format($p['price'], 2) ?> บาท</td>

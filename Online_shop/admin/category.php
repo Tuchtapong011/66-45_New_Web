@@ -120,8 +120,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_id ASC")-
         </form>
     </td>
     <td>
-        <a href="category.php?delete=<?= $cat['category_id'] ?>" class="btn btn-sm btn-danger"
-        onclick="return confirm('คุณต้องการลบหมวดหมู่นี้หรือไม่?')">ลบ</a>
+        <button class="btn btn-sm btn-danger" onclick="confirmDelete(<?= $cat['category_id'] ?>)">ลบ</button>
     </td>
 </tr>
 <?php endforeach; ?>
@@ -129,6 +128,21 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_id ASC")-
 </table>
 
 <script>
+function confirmDelete(categoryId) {
+    Swal.fire({
+        title: 'คุณแน่ใจหรือไม่?',
+        text: "คุณจะไม่สามารถกู้คืนข้อมูลนี้ได้!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ลบ',
+        cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = 'category.php?delete=' + categoryId;
+        }
+    });
+}
+
 <?php if (isset($_SESSION['success'])): ?>
     Swal.fire({
         icon: 'success',
@@ -147,6 +161,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_id ASC")-
     });
 <?php unset($_SESSION['error']); endif; ?>
 </script>
+
 
 </body>
 </html>
