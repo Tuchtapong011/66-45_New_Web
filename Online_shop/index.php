@@ -130,10 +130,11 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div>
             <?php if ($isLoggedIn): ?>
                 <span class="me-3 text-dark">
-                    สวัสดี, <?= htmlspecialchars($_SESSION['username']) ?> (<?= $_SESSION['role'] ?>)
+                    สวัสดี, <?= htmlspecialchars($_SESSION['full_name']) ?> (<?= $_SESSION['role'] ?>)
                 </span>
                 <a href="profile.php" class="btn btn-outline-info btn-sm">โปรไฟล์</a>
                 <a href="cart.php" class="btn btn-outline-warning btn-sm">🛒 ตะกร้า</a>
+                <a href="orders.php" class="btn btn-outline-info btn-sm">ดูประวัติการสั่งซื้อ</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm">ออกจากระบบ</a>
             <?php else: ?>
                 <a href="login.php" class="btn btn-success btn-sm">เข้าสู่ระบบ</a>
@@ -198,16 +199,14 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <div class="mt-auto d-flex gap-2">
                         <?php if ($isLoggedIn): ?>
-                            <form action="cart.php" method="post" class="d-inline-flex gap-2">
-                                <input type="hidden" name="product_id" value="<?= (int)$p['product_id'] ?>">
-                                <input type="hidden" name="quantity" value="1">
-                                <button type="submit" class="btn btn-sm btn-success">
-                                    ใส่ตะกร้า
-                                </button>
-                            </form>
-                        <?php else: ?>
-                            <small class="text-muted">เข้าสู่ระบบเพื่อสั่งซื้อ</small>
-                        <?php endif; ?>
+                        <button type="button"
+                            class="btn btn-sm btn-success add-to-cart-btn"
+                            data-product-id="<?= (int)$p['product_id'] ?>">
+                            ใส่ตะกร้า
+                        </button>
+                    <?php else: ?>
+                        <small class="text-muted">เข้าสู่ระบบเพื่อสั่งซื้อ</small>
+                    <?php endif; ?>
 
                         <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>"
                         class="btn btn-sm btn-outline-primary ms-auto">
@@ -219,6 +218,47 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     <?php endforeach; ?>
     </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+        button.addEventListener('click', function () {
+            const productId = this.getAttribute('data-product-id');
+
+            fetch('cart.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `product_id=${productId}&quantity=1`
+            })
+            .then(response => {
+                if (response.ok) {
+                    Swal.fire({
+                        position: "top-end",
+                        icon: "success",
+                        title: "เพิ่มสินค้าลงตะกร้าแล้ว!",
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "เกิดข้อผิดพลาด",
+                        text: "ไม่สามารถเพิ่มสินค้าได้",
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: "error",
+                    title: "ผิดพลาด",
+                    text: error.message,
+                });
+            });
+        });
+    });
+</script>
 
 </body>
 </html>
