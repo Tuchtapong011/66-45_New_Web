@@ -1,8 +1,10 @@
 <?php
+require '../session_timeout.php';
 require '../Config.php';
 require 'authadmin.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Guild Master') {
     header("Location: ../login.php");
     exit;
 }

@@ -1,263 +1,232 @@
 <?php
 session_start();
+require 'session_timeout.php';
 require_once 'Config.php';
 
 $isLoggedIn = isset($_SESSION['user_id']);
 
-$stmt = $conn->query("SELECT p.*, c.category_name
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.category_id
+// โหลดข้อมูลนักผจญภัย
+if ($isLoggedIn && (!isset($_SESSION['full_name']) || !isset($_SESSION['class']) || !isset($_SESSION['adventure_rank']))) {
+    $stmt = $conn->prepare("SELECT full_name, class, adventure_rank FROM users WHERE user_id=?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $userSession = $stmt->fetch(PDO::FETCH_ASSOC);
+    $_SESSION['full_name'] = $userSession['full_name'];
+    $_SESSION['class'] = $userSession['class'];
+    $_SESSION['adventure_rank'] = $userSession['adventure_rank'];
+}
+
+// โหลดสินค้า
+$stmt = $conn->query("SELECT p.*, c.category_name FROM products p 
+    LEFT JOIN categories c ON p.category_id = c.category_id 
     ORDER BY p.created_at DESC");
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// ดึงจำนวนสินค้าในตะกร้า
+$cartCount = isset($_SESSION['cart']) ? array_sum(array_column($_SESSION['cart'], 'quantity')) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <title>ISEKAI SHOP</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Guild Shop - ร้านค้ากิลนักผจญภัย</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit&family=MedievalSharp&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+body {
+  font-family:'Kanit',sans-serif;
+  background: radial-gradient(circle at top, #2b1055, #7597de);
+  color: #fff;
+  overflow-x: hidden;
+  position: relative;
+}
+.magic-glow {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15), transparent 70%);
+  animation: pulse 6s infinite alternate;
+  pointer-events:none;
+  z-index:-1;
+}
+@keyframes pulse { from {opacity: 0.3;} to {opacity: 0.6;} }
+.guild-header {
+  background: rgba(0,0,0,0.6);
+  border: 2px solid #ffd700;
+  border-radius: 15px;
+  padding: 15px 25px;
+  margin: 25px 0;
+  box-shadow: 0 0 15px rgba(255,215,0,0.6);
+}
+.guild-header h1 {
+  font-family:'MedievalSharp',cursive;
+  color: #ffd700;
+  font-size: 2.5rem;
+  text-shadow: 0 0 10px #ffea00;
+}
+.cart-btn {
+  position: relative;
+  background: linear-gradient(135deg,#ff6ec4,#7873f5);
+  border: none;
+  border-radius: 50%;
+  width: 45px; height: 45px;
+  color: white;
+  font-size: 1.3rem;
+}
+.cart-btn .badge {
+  position: absolute;
+  top: -5px; right: -5px;
+  background: #f9d71c;
+  color: black;
+  font-weight: bold;
+}
+.product-card {
+  border: none;
+  border-radius: 15px;
+  background: linear-gradient(145deg,#3a1c71,#d76d77,#ffaf7b);
+  color: #fff;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+.product-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 0 30px rgba(255,215,0,0.4);
+}
+.product-thumb {
+  border-radius: 15px 15px 0 0;
+  width:100%;
+  aspect-ratio:4/3;
+  object-fit:cover;
+}
+.product-title { font-weight:bold; color:#fff; }
+.price { font-size:1.2rem; font-weight:bold; color:#ffd700; }
+.btn-buy {
+  background: linear-gradient(135deg,#34e89e,#0f3443);
+  border: none; border-radius: 10px; color: #fff;
+}
+.btn-buy:hover { background: linear-gradient(135deg,#0f3443,#34e89e); }
+.btn-outline-light { border-radius:10px; }
 
-    <!-- Bootstrap & Fonts -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet">
+.guild-header {
+  background: rgba(0,0,0,0.6);
+  border: 2px solid #ffd700;
+  border-radius: 15px;
+  padding: 15px 25px;
+  margin: 25px 0;
+  box-shadow: 0 0 15px rgba(255,215,0,0.6);
+  text-align: center;
+}
 
-    <style>
-        body {
-            font-family: 'Kanit', sans-serif;
-            background: linear-gradient(to bottom, #fdf0ff, #d4ecff);
-            background-attachment: fixed;
-            min-height: 100vh;
-            padding-bottom: 50px;
-        }
+.guild-header h1 {
+  font-family:'MedievalSharp',cursive;
+  color: #ffd700;
+  font-size: 2.5rem;
+  text-shadow: 0 0 10px #ffea00;
+}
 
-        .shop-title {
-            font-size: 2.8rem;
-            font-weight: bold;
-            color: #8e44ad;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .topbar {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px 30px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            margin-bottom: 30px;
-        }
-
-        .product-card {
-            border: none;
-            border-radius: 15px;
-            background: #fff;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .product-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        .product-thumb {
-            width: 100%;
-            aspect-ratio: 4/3; /* อัตราส่วน 4:3 เหมาะกับรูปสินค้า */
-            object-fit: cover;
-            border-top-left-radius: 15px;
-            border-top-right-radius: 15px;
-            background-color: #f8f8f8;
-        }
-
-        .product-meta {
-            font-size: 0.8rem;
-            color: #6c757d;
-        }
-
-        .product-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-
-        .price {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #e67e22;
-        }
-
-        .rating i {
-            color: #f1c40f;
-        }
-
-        .badge-top-left {
-            position: absolute;
-            top: .5rem;
-            left: .5rem;
-            z-index: 2;
-            font-size: 0.75rem;
-            padding: .4em .6em;
-            border-radius: .5rem;
-        }
-
-        .wishlist {
-            color: #ccc;
-        }
-
-        .wishlist:hover {
-            color: #ff5b5b;
-        }
-
-        .btn-outline-primary {
-            border-radius: 8px;
-        }
-
-        .btn-success {
-            border-radius: 8px;
-        }
-
-        .btn-outline-primary:hover {
-            background-color: #8e44ad;
-            border-color: #8e44ad;
-            color: white;
-        }
-    </style>
+</style>
 </head>
-
 <body class="container py-4">
 
-    <!-- Topbar -->
-    <div class="d-flex justify-content-between align-items-center topbar">
-        <div class="shop-title">꧁༺ ISEKAI SHOP ༻꧂</div>
-        <div>
-            <?php if ($isLoggedIn): ?>
-                <span class="me-3 text-dark">
-                    สวัสดี, <?= htmlspecialchars($_SESSION['full_name']) ?> (<?= $_SESSION['role'] ?>)
-                </span>
-                <a href="profile.php" class="btn btn-outline-info btn-sm">โปรไฟล์</a>
-                <a href="cart.php" class="btn btn-outline-warning btn-sm">🛒 ตะกร้า</a>
-                <a href="orders.php" class="btn btn-outline-info btn-sm">ดูประวัติการสั่งซื้อ</a>
-                <a href="logout.php" class="btn btn-outline-secondary btn-sm">ออกจากระบบ</a>
-            <?php else: ?>
-                <a href="login.php" class="btn btn-success btn-sm">เข้าสู่ระบบ</a>
-                <a href="register.php" class="btn btn-primary btn-sm">สมัครสมาชิก</a>
-            <?php endif; ?>
-        </div>
+<div class="magic-glow"></div>
+
+<!-- Header -->
+<div class="guild-header">
+  <div class="d-flex justify-content-between align-items-center">
+    <!-- ซ้าย: ว่างไว้สำหรับบาลานซ์ -->
+    <div style="width:45px;"></div>
+
+    <!-- กลาง: ชื่อร้าน -->
+    <div class="text-center flex-grow-1">
+      <h1 style="margin:0;">⚔️ Guild Shop ⚗️</h1>
     </div>
 
-    <!-- Product Grid -->
-    <div class="row g-4">
-    <?php foreach ($products as $p): ?>
-        <?php
-        $img = !empty($p['image']) 
-            ? 'product_images/' . rawurlencode($p['image']) 
-            : 'product_images/no-image.png';
-
-        $isNew = isset($p['created_at']) && (time() - strtotime($p['created_at']) <= 7*24*3600);
-        $isHot = (int)$p['stock'] > 0 && (int)$p['stock'] < 5;
-        $rating = isset($p['rating']) ? (float)$p['rating'] : 4.5;
-        $full = floor($rating);
-        $half = ($rating - $full) >= 0.5 ? 1 : 0;
-        ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-            <div class="card product-card h-100 position-relative shadow-sm">
-                <?php if ($isNew): ?>
-                    <span class="badge bg-success badge-top-left">ใหม่!</span>
-                <?php elseif ($isHot): ?>
-                    <span class="badge bg-danger badge-top-left">HOT</span>
-                <?php endif; ?>
-
-                <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>" class="d-block">
-                    <img src="<?= htmlspecialchars($img) ?>"
-                        alt="<?= htmlspecialchars($p['product_name']) ?>"
-                        class="img-fluid w-100 product-thumb">
-                </a>
-
-                <div class="p-3 d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <div class="product-meta">
-                            <?= htmlspecialchars($p['category_name'] ?? 'ไม่ระบุหมวดหมู่') ?>
-                        </div>
-                        <button class="btn btn-link p-0 wishlist" title="เพิ่มใน Wishlist" type="button">
-                            <i class="bi bi-heart"></i>
-                        </button>
-                    </div>
-
-                    <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>" class="text-decoration-none">
-                        <div class="product-title">
-                            <?= htmlspecialchars($p['product_name']) ?>
-                        </div>
-                    </a>
-
-                    <div class="rating mb-2">
-                        <?php for ($i = 0; $i < $full; $i++): ?><i class="bi bi-star-fill"></i><?php endfor; ?>
-                        <?php if ($half): ?><i class="bi bi-star-half"></i><?php endif; ?>
-                        <?php for ($i = 0; $i < 5 - $full - $half; $i++): ?><i class="bi bi-star"></i><?php endfor; ?>
-                    </div>
-
-                    <div class="price mb-3">
-                        <?= number_format((float)$p['price'], 2) ?> บาท
-                    </div>
-
-                    <div class="mt-auto d-flex gap-2">
-                        <?php if ($isLoggedIn): ?>
-                        <button type="button"
-                            class="btn btn-sm btn-success add-to-cart-btn"
-                            data-product-id="<?= (int)$p['product_id'] ?>">
-                            ใส่ตะกร้า
-                        </button>
-                    <?php else: ?>
-                        <small class="text-muted">เข้าสู่ระบบเพื่อสั่งซื้อ</small>
-                    <?php endif; ?>
-
-                        <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>"
-                        class="btn btn-sm btn-outline-primary ms-auto">
-                            ดูรายละเอียด
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    <?php endforeach; ?>
+    <!-- ขวา: ปุ่มตะกร้า -->
+    <?php if ($isLoggedIn): ?>
+    <div class="d-flex align-items-center">
+      <a href="cart.php" class="position-relative">
+        <button class="cart-btn">
+          <i class="bi bi-cart"></i>
+          <span id="cart-count" class="badge rounded-pill"><?= $cartCount ?></span>
+        </button>
+      </a>
     </div>
+    <?php else: ?>
+      <div style="width:45px;"></div>
+    <?php endif; ?>
+  </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- แถบข้อมูลนักผจญภัย -->
+  <?php if ($isLoggedIn): ?>
+    <p class="mt-3 mb-1 text-center">
+      ยินดีต้อนรับนักผจญภัย <b><?= htmlspecialchars($_SESSION['full_name']) ?></b>
+      (<?= htmlspecialchars($_SESSION['class']) ?> | <?= htmlspecialchars($_SESSION['adventure_rank']) ?>)
+    </p>
+    <div class="text-center">
+      <a href="profile.php" class="btn btn-outline-light btn-sm">โปรไฟล์</a>
+      <a href="orders.php" class="btn btn-outline-warning btn-sm">📜 ประวัติการสั่งซื้อ</a>
+      <a href="logout.php" class="btn btn-outline-danger btn-sm">ออกจากระบบ</a>
+    </div>
+  <?php else: ?>
+    <div class="text-center mt-2">
+      <a href="login.php" class="btn btn-success btn-sm">เข้าสู่ระบบ</a>
+      <a href="register.php" class="btn btn-primary btn-sm">สมัครสมาชิก</a>
+    </div>
+  <?php endif; ?>
+</div>
+
+<!-- Product Grid -->
+<div class="row g-4">
+<?php foreach($products as $p): 
+$img = !empty($p['image']) ? 'product_images/'.rawurlencode($p['image']) : 'product_images/no-image.png';
+?>
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="card product-card h-100">
+      <img src="<?= htmlspecialchars($img) ?>" class="product-thumb" alt="<?= htmlspecialchars($p['product_name']) ?>">
+      <div class="card-body">
+        <h5 class="product-title"><?= htmlspecialchars($p['product_name']) ?></h5>
+        <p class="small"><?= htmlspecialchars($p['category_name'] ?? 'ไม่ระบุหมวดหมู่') ?></p>
+        <div class="price"><?= number_format((float)$p['price'],2) ?> G</div>
+        <div class="mt-3 d-flex justify-content-between align-items-center">
+          <?php if($isLoggedIn): ?>
+            <button class="btn btn-buy btn-sm add-to-cart-btn" data-product-id="<?= (int)$p['product_id'] ?>">🛒 เพิ่มในตะกร้า</button>
+          <?php else: ?>
+            <small class="text-warning">เข้าสู่ระบบเพื่อซื้อ</small>
+          <?php endif; ?>
+          <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>" class="btn btn-outline-light btn-sm">รายละเอียด</a>
+        </div>
+      </div>
+    </div>
+  </div>
+<?php endforeach; ?>
+</div>
+
 <script>
-    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
-        button.addEventListener('click', function () {
-            const productId = this.getAttribute('data-product-id');
-
-            fetch('cart.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `product_id=${productId}&quantity=1`
-            })
-            .then(response => {
-                if (response.ok) {
-                    Swal.fire({
-                        position: "top-end",
-                        icon: "success",
-                        title: "เพิ่มสินค้าลงตะกร้าแล้ว!",
-                        showConfirmButton: false,
-                        timer: 1500
-                    });
-                } else {
-                    Swal.fire({
-                        icon: "error",
-                        title: "เกิดข้อผิดพลาด",
-                        text: "ไม่สามารถเพิ่มสินค้าได้",
-                    });
-                }
-            })
-            .catch(error => {
-                Swal.fire({
-                    icon: "error",
-                    title: "ผิดพลาด",
-                    text: error.message,
-                });
-            });
-        });
+document.querySelectorAll('.add-to-cart-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const id = btn.dataset.productId;
+    fetch('cart.php',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:`product_id=${id}&quantity=1`
+    })
+    .then(r=>r.ok ? r.text() : Promise.reject('Error'))
+    .then(()=>{
+      const cartCount=document.getElementById('cart-count');
+      cartCount.textContent=parseInt(cartCount.textContent)+1;
+      Swal.fire({
+        position:"top-end",
+        icon:"success",
+        title:"เพิ่มสินค้าลงตะกร้าแล้ว!",
+        showConfirmButton:false,
+        timer:1500
+      });
+    })
+    .catch(err=>{
+      Swal.fire('เกิดข้อผิดพลาด',err,'error');
     });
+  });
+});
 </script>
 
 </body>
